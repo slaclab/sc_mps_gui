@@ -5,9 +5,11 @@ from models_pkg.mps_model import MPSModel
 from mixins.summary import SummaryMixin
 from mixins.logic import LogicMixin
 from mixins.selection_detail import SelectionDetailsMixin
+from mixins.future import FutureMixin
 
 
-class MpsGuiDisplay(Display, SummaryMixin, LogicMixin, SelectionDetailsMixin):
+class MpsGuiDisplay(Display, SummaryMixin, LogicMixin, SelectionDetailsMixin,
+                    FutureMixin):
     def __init__(self, parent=None, args=[], macros=None):
         super(MpsGuiDisplay, self).__init__(parent=parent, args=args,
                                             macros=macros)
@@ -19,15 +21,16 @@ class MpsGuiDisplay(Display, SummaryMixin, LogicMixin, SelectionDetailsMixin):
             self.model = MPSModel()
 
         self.faults = self.model.faults
-        self.total_faults = len(self.faults)
 
         self.logic_init()
         self.selection_init()
         self.summary_init()
+        self.future_init()
 
-        self.logic_slot_connections()
-        self.selection_slot_connections()
-        self.summ_slot_connections()
+        self.logic_connections()
+        self.selection_connections()
+        self.summ_connections()
+        self.ftr_connections()
 
     # ~~~~ PyDM UI File Management ~~~~ #
     @staticmethod

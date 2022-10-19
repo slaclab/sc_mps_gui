@@ -12,11 +12,13 @@
     |   |-- __init__.py  
     |   |-- summary.py  
     |   |-- logic.py  
-    |   `-- selection_detail.py  
+    |   |-- selection_detail.py  
+    |   `-- future.py  
     |-- models/  
     |   |-- __init__.py  
     |   |-- mps_model.py  
-    |   `-- logic_model.py
+    |   |-- logic_model.py  
+    |   `-- future_model.py  
     `-- resources/  
         |-- __init__.py  
         |-- mps_permit_panel.ui  
@@ -46,9 +48,11 @@
 ### summary.py  
   - This file contains a python mixin to manage the Summary tab  
   - Manage the faults table and the bypass table  
+  - Right-clicking a fault allows the user to open more details in the Logic tab  
+  - Middle-clicking a fault copies the fault's name or fault's pv based on which column is clicked  
   - Minor interactions with Logic tab:  
+    - When a fault is right-clicking
     - On fault status change and/or bypass status change, alter the associated cell in Logic tab table  
-    - When a fault is right-clicked, present an option to open the fault in the Logic tab
 
 
 ### logic.py  
@@ -57,6 +61,7 @@
   - Allow for searching and sorting in the main table  
   - Allow the user to filter out all inactive faults
   - Faults can be bypassed from the selection details pane  
+  - Middle-clicking a fault copies the fault's name or fault's pv based on which column is clicked  
 
 
 ### selection_detail.py  
@@ -70,6 +75,14 @@
     - PV Table  
 
 
+### future.py  
+  - This file contains a python mixin to manage the Future Sight tab  
+  - This tab shows the user all faults regardless of ignore status  
+  - Allow the user to filter out faults based on ignore conditions and/or fault name  
+  - Right-clicking a fault allows the user to open more details in the Logic tab  
+  - Middle-clicking a fault copies the fault's name or fault's pv based on which column is clicked  
+
+
 ### mps_model.py  
   - Using MPSConfig, establish a connection to the MPS Database  
     - If a filename is not provided, then MPSModel will locate the default file to use  
@@ -78,6 +91,13 @@
 
 ### logic_model.py  
   - Create a custom QAbstractTableModel, QSortFilterProxyModel, and QStyledItemDelegate for use in the Logic tab and Summary tab  
+
+
+### future_model.py  
+  - Create a custom QAbstractTableModel
+  - This table model is very similar to LogicTableModel, but:
+    - Includes a column of the ignore conditions
+    - Excludes the Bypassed and Ignored columns
 
 
 ### mps_permit_panel.ui  
