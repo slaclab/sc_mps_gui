@@ -1,26 +1,34 @@
 # SC MPS Display  
 
 ## Directory Structure  
+```
 .  
 |-- README  
 |-- RELEASE_NOTES  
 |-- sc_mps_gui.bash  
+|  
 `-- gui/  
     |-- mps_gui_main.ui  
     |-- mps_gui_main.py  
+    |  
     |-- mixins/  
     |   |-- __init__.py  
     |   |-- summary.py  
     |   |-- logic.py  
-    |   `-- selection_detail.py  
+    |   |-- selection_detail.py  
+    |   `-- recent_faults.py  
+    |  
     |-- models/  
     |   |-- __init__.py  
     |   |-- mps_model.py  
-    |   `-- logic_model.py
+    |   |-- logic_model.py
+    |   `-- recent_faults_model.py
+    |  
     `-- resources/  
         |-- __init__.py  
         |-- mps_permit_panel.ui  
         `-- lcls_mps_lockup_sidebyside_digital.png  
+```
 
 
 ### sc_mps_gui.bash  
@@ -35,12 +43,13 @@
 
 ### mps_gui_main.py & mps_gui_main.ui  
   - This is the main display for the SC MPS Display  
-  - Contains a tab widget with 2 tabs:  
+  - Contains a tab widget with 3 tabs:  
     - The Summary tab contains 6 embedded displays, 2 'check engine lights', and 2 tables, one containing faulted PVs and one containing bypassed faults  
     - The Logic tab contains a table of all faults in the database  
       - The searchbar shows only faults containing that substring  
       - The checkbox shows the user all inactive faults  
       - Selecting a fault opens a panel with more details on that fault  
+    - The Recent Faults tab shows the user the fault history and allows the user to sort or open the fault in the Logic tab
 
 
 ### summary.py  
@@ -70,6 +79,11 @@
     - PV Table  
 
 
+### recent_faults.py  
+  - Show faults from recent history using the mps_history package
+  - Allow the user to filter by inputted text
+
+
 ### mps_model.py  
   - Using MPSConfig, establish a connection to the MPS Database  
     - If a filename is not provided, then MPSModel will locate the default file to use  
@@ -78,6 +92,10 @@
 
 ### logic_model.py  
   - Create a custom QAbstractTableModel, QSortFilterProxyModel, and QStyledItemDelegate for use in the Logic tab and Summary tab  
+
+
+### recent_faults_model.py  
+  - Create a custom QAbstractTableModel, QSortFilterProxyModel, and QStyledItemDelegate for use in the Recent Faults tab
 
 
 ### mps_permit_panel.ui  
