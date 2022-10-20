@@ -26,7 +26,7 @@ class SelectionDetailsMixin:
 
         self.state_pv = None
 
-    def selection_slot_connections(self):
+    def selection_connections(self):
         """Set up slot connections for the Selection Details section."""
         # Establish connections for the SelectionDetails widget
         self.ui.logic_tbl.selectionModel().selectionChanged.connect(
@@ -40,7 +40,7 @@ class SelectionDetailsMixin:
         self.ui.dtls_pv_tbl.itemChanged.connect(
             partial(self.table_max_size, self.ui.dtls_pv_tbl))
 
-    def set_fault_details(self, fault):
+    def set_fault_details(self, fault, ign_cond):
         """Get the fault's device and inputs. Set necessary labels in
         the Selection Details section."""
         dev = self.model.fault_to_dev(fault.fault)
@@ -50,10 +50,7 @@ class SelectionDetailsMixin:
         self.ui.dtls_byp_btn.macros = dumps({"DEVICE_BYP": fault.name})
         self.ui.dtls_name_lbl.setText(fault.description)
 
-        # Get ignore conditions and set the related label's text
-        ign_str = ", ".join([ign.condition.description
-                             for ign in dev.ignore_conditions])
-        self.ui.dtls_ign_lbl.setText(ign_str if ign_str else "--")
+        self.ui.dtls_ign_lbl.setText(ign_cond if ign_cond else "--")
 
         # Set cells in the Truth Table and PV Table
         self.pop_truth_table(fault)
@@ -119,7 +116,7 @@ class SelectionDetailsMixin:
             if analog:
                 pv = f"{inp[0]}_T{i}_SCMPSC"
             else:
-                pv = f"{i}_SCMPSC"
+                pv = f"{inp[i]}_SCMPSC"
 
             item0 = CellItem(str(i))
             item1 = CellItem(pv + "C")
@@ -165,7 +162,8 @@ class SelectionDetailsMixin:
             indices = previous.indexes()
         row_ind = self.logic_model.mapToSource(indices[0])
         fault = self.faults[row_ind.row()]
-        self.set_fault_details(fault)
+        ign_cond = self.ftr_tbl_model.index(row_ind.row(), 8).data()
+        self.set_fault_details(fault, ign_cond)
         if not self.ui.logic_spltr.sizes()[1]:
             self.ui.logic_spltr.setSizes(self.splitter_state)
 
@@ -175,6 +173,8 @@ class SelectionDetailsMixin:
         self.state_pv = PV(f"{fault.name}_TEST",
                            callback=partial(self.state_change, row),
                            auto_monitor=DBE_VALUE)
+        if not self.state_pv.connected:
+            self.ui.dtls_state_lbl.setText("<Fault PVs Not Connected>")
 
     @Slot()
     def details_closed(self):

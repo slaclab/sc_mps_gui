@@ -21,7 +21,6 @@ class MpsGuiDisplay(Display, SummaryMixin, LogicMixin, SelectionDetailsMixin,
             self.model = MPSModel()
 
         self.faults = self.model.faults
-        self.total_faults = len(self.faults)
 
         self.logic_init()
         self.selection_init()
