@@ -32,6 +32,8 @@ class MpsGuiDisplay(Display, SummaryMixin, LogicMixin, SelectionDetailsMixin,
         self.summ_slot_connections()
         self.recent_connections()
 
+        self.timer.start()
+
     # ~~~~ PyDM UI File Management ~~~~ #
     @staticmethod
     def ui_filename():
