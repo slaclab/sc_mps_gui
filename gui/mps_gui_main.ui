@@ -1902,8 +1902,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>348</width>
-             <height>292</height>
+             <width>1358</width>
+             <height>469</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -2759,7 +2759,7 @@
            <string>{}</string>
           </property>
           <property name="filename" stdset="0">
-           <string>resources/conf_def_embed.ui</string>
+           <string>resources/config_widgets.py</string>
           </property>
          </widget>
         </widget>
@@ -2870,6 +2870,7 @@
    <class>PyDMEmbeddedDisplay</class>
    <extends>QFrame</extends>
    <header>pydm.widgets.embedded_display</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>PyDMRelatedDisplayButton</class>

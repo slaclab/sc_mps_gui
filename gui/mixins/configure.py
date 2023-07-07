@@ -1,10 +1,11 @@
-from json import dumps
 from itertools import groupby
 from qtpy.QtCore import (Qt, Slot, QModelIndex, QSortFilterProxyModel)
-from qtpy.QtWidgets import (QHeaderView, QApplication)
+from qtpy.QtWidgets import QHeaderView
 from mps_database.models import Device
 from enums import ConfFiles
-from models_pkg.configure_model import (ConfigureTableModel)
+from models_pkg.configure_model import ConfigureTableModel
+from resources.config_widgets import (ConfDef, ConfErr)
+from resources.conf_bpm_embed import ConfBPM
 
 
 class ConfigureMixin:
@@ -131,9 +132,8 @@ class ConfigureMixin:
         content changes. Load the associated Configure Display."""
         if dev_type == ConfFiles.BPMS:
             mac = self.bpm_macros()
-        else:
-            mac = {}
-
-        self.ui.configure_embed.macros = dumps(mac)
-        self.ui.configure_embed.filename = dev_type.value
-        QApplication.instance().processEvents()
+            self.ui.configure_spltr.replaceWidget(1, ConfBPM(macros=mac))
+        elif dev_type == ConfFiles.DEF:
+            self.ui.configure_spltr.replaceWidget(1, ConfDef())
+        elif dev_type == ConfFiles.ERR:
+            self.ui.configure_spltr.replaceWidget(1, ConfErr())
