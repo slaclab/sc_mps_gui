@@ -1,13 +1,17 @@
 from typing import List
 from qtpy.QtCore import (Qt, Signal, QModelIndex, QAbstractTableModel)
-from enums import ConfFiles
 from mps_database.models import Device
+from resources.config_widgets import (ConfDef, ConfErr)
+from resources.conf_bpm_embed import ConfBPM
 
 
 class ConfigureTableModel(QAbstractTableModel):
     hdr_lst = ["Device", "Device Type"]
 
-    table_changed = Signal(ConfFiles)
+    table_changed = Signal(type)
+    type_changed = Signal(type)
+    datum_added = Signal(Device)
+    datum_removed = Signal(Device)
 
     def __init__(self, parent, _data: List[Device], save_type=False):
         super(ConfigureTableModel, self).__init__(parent)
@@ -40,22 +44,23 @@ class ConfigureTableModel(QAbstractTableModel):
             return self.hdr_lst[section]
 
     def table_type(self):
-        """Return the ConfFiles Enum for the type(s) in the model."""
+        """Return the class for the type(s) in the model."""
         if len(self.type_dict) == 0:
-            return ConfFiles['DEF']
+            return ConfDef
         elif len(self.type_dict) > 1:
-            return ConfFiles['ERR']
+            return ConfErr
         else:
             key = list(self.type_dict.keys())[0]
-            try:
-                return ConfFiles[key]
-            except KeyError:
-                return ConfFiles['ERR']
+            if key == "BPMS":
+                return ConfBPM
+            else:
+                return ConfErr
 
     def add_type(self, dev_type: str):
         """Add the given device type to the type dictionary."""
         self.type_dict.setdefault(dev_type, 0)
         self.type_dict[dev_type] += 1
+        self.type_changed.emit(self.table_type())
 
     def add_datum(self, datum: Device):
         """Add a single device to the model."""
@@ -68,7 +73,8 @@ class ConfigureTableModel(QAbstractTableModel):
         self.endInsertRows()
 
         self.add_type(datum.device_type.name)
-        self.table_changed.emit(self.table_type())
+        # self.table_changed.emit(self.table_type())
+        self.datum_added.emit(datum)
 
     def remove_type(self, dev_type: str):
         """Remove the given device type from the type dictionary."""
@@ -77,16 +83,18 @@ class ConfigureTableModel(QAbstractTableModel):
         self.type_dict[dev_type] -= 1
         if self.type_dict[dev_type] <= 0:
             del self.type_dict[dev_type]
+        self.type_changed.emit(self.table_type())
 
     def remove_datum(self, index: int):
         """Remove a single device from the model."""
-        datum = self._data[index]
         self.beginRemoveRows(QModelIndex(), index, index)
-        del self._data[index]
+        datum = self._data.pop(index)
+        # del self._data[index]
         self.endRemoveRows()
 
         self.remove_type(datum.device_type.name)
-        self.table_changed.emit(self.table_type())
+        # self.table_changed.emit(self.table_type())
+        self.datum_removed.emit(datum)
 
     def clear_data(self):
         """Remove all devices and device types from the model."""
@@ -99,8 +107,12 @@ class ConfigureTableModel(QAbstractTableModel):
         self.endRemoveRows()
 
         self.type_dict.clear()
-        self.table_changed.emit(ConfFiles['DEF'])
+        # self.table_changed.emit(self.table_type())
+        self.type_changed.emit(self.table_type())
 
     def get_device(self, index: int):
         """Return the requested device."""
         return self._data[index]
+
+    def get_devices(self):
+        return self._data

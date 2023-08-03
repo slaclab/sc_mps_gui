@@ -1,11 +1,7 @@
-from itertools import groupby
 from qtpy.QtCore import (Qt, Slot, QModelIndex, QSortFilterProxyModel)
 from qtpy.QtWidgets import QHeaderView
 from mps_database.models import Device
-from enums import ConfFiles
 from models_pkg.configure_model import ConfigureTableModel
-from resources.config_widgets import (ConfDef, ConfErr)
-from resources.conf_bpm_embed import ConfBPM
 
 
 class ConfigureMixin:
@@ -37,6 +33,8 @@ class ConfigureMixin:
         hdr.setSectionResizeMode(0, QHeaderView.Stretch)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
 
+        self.curr_config = None
+
     def configure_connections(self):
         """Establish PV and slot connections for the devices model and
         configure tab."""
@@ -48,63 +46,10 @@ class ConfigureMixin:
         self.ui.sel_devs_edt.textChanged.connect(self.sel_devs_filter.setFilterFixedString)
         self.ui.sel_clear_btn.clicked.connect(self.sel_devs_model.clear_data)
         self.ui.sel_devs_tbl.clicked.connect(self.dev_deselect)
-        self.sel_devs_model.table_changed.connect(self.reload_embed)
-
-    def bpm_macros(self):
-        """Construct the macros dictionary for the selected device(s) if
-        the device(s) are BPM's."""
-        multi = not self.sel_devs_model.rowCount() == 1
-
-        mac = {'MULTI': multi}
-        for i in range(self.sel_devs_model.rowCount()):
-            suf = str(i + 1) if multi else ""
-            dev = self.sel_devs_model.get_device(i)
-
-            mac[f'LN{suf}'] = dev.card.link_node.lcls1_id
-            mac[f'CL{suf}'] = dev.card.crate.location
-            mac[f'DEVICE{suf}'] = self.model.name.getDeviceName(dev)
-
-            if multi:
-                if dev.is_analog():
-                    chans = dev.channel.number
-                else:
-                    chans = self.channel_range([i.channel for i in dev.inputs])
-                mac[f'AC{suf}'] = dev.card.number
-                mac[f'CH{suf}'] = chans
-
-        if not multi:
-            mac['AS'] = dev.card.slot_number
-            mac['CPU'] = dev.card.link_node.cpu
-
-            for i in range(1, 8):
-                mac[f'AC{i}'] = "Slot Empty"
-                mac[f'CH{i}'] = ""
-
-            for c in dev.card.crate.cards:
-                chans = self.channel_range(c.analog_channels
-                                           + c.digital_channels
-                                           + c.digital_out_channels)
-                mac[f'AC{c.slot_number}'] = c.number
-                mac[f'CH{c.slot_number}'] = chans
-
-        return mac
-
-    def channel_range(self, channels):
-        """Takes a list of channels (AnalogChannel, DigitalChannel, or
-        DigitalOutChannel) and returns ranges of numbers covered."""
-        nums = sorted([ch.number for ch in channels])
-        ranges = []
-        for _, r in groupby(enumerate(nums), lambda e: e[1] - e[0]):
-            r = list(r)
-            if len(r) == 1:
-                ranges.append((r[0][1], None))
-            elif len(r) == 2:
-                ranges.append((r[0][1], None))
-                ranges.append((r[-1][1], None))
-            else:
-                ranges.append((r[0][1], r[-1][1]))
-
-        return ", ".join([str(x) if not y else f"{x}-{y}" for x, y in ranges])
+        # self.sel_devs_model.table_changed.connect(self.reload_embed)
+        self.sel_devs_model.type_changed.connect(self.reload_embed)
+        self.sel_devs_model.datum_added.connect(self.add_device)
+        self.sel_devs_model.datum_removed.connect(self.remove_device)
 
     @Slot(QModelIndex)
     def dev_selected(self, index: QModelIndex):
@@ -126,14 +71,21 @@ class ConfigureMixin:
         dev_id = self.sel_devs_filter.mapToSource(index).row()
         self.sel_devs_model.remove_datum(dev_id)
 
-    @Slot(ConfFiles)
-    def reload_embed(self, dev_type: ConfFiles):
+    @Slot(type)
+    def reload_embed(self, dev_type):
         """Reload the embedded display when the Selected Devices table
         content changes. Load the associated Configure Display."""
-        if dev_type == ConfFiles.BPMS:
-            mac = self.bpm_macros()
-            self.ui.configure_spltr.replaceWidget(1, ConfBPM(macros=mac))
-        elif dev_type == ConfFiles.DEF:
-            self.ui.configure_spltr.replaceWidget(1, ConfDef())
-        elif dev_type == ConfFiles.ERR:
-            self.ui.configure_spltr.replaceWidget(1, ConfErr())
+        devices = self.sel_devs_model.get_devices()
+        if isinstance(self.curr_config, dev_type):
+            self.curr_config.set_devices(devices)
+        else:
+            self.curr_config = dev_type(devices=devices, model=self.model)
+            self.ui.configure_spltr.replaceWidget(1, self.curr_config)
+
+    @Slot(Device)
+    def add_device(self, device):
+        self.curr_config.add_device(device)
+
+    @Slot(Device)
+    def remove_device(self, device):
+        self.curr_config.remove_device(device)

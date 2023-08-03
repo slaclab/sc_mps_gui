@@ -181,7 +181,7 @@ class SelectionDetailsMixin:
 
         mac = {}
         mac['MPS_PREFIX'] = dev.card.get_pv_name()
-        mac['DEVICE'] = fault.name[:fault.name.rfind(':')]
+        mac['DEVICE'] = fault.name.rsplit(':', 1)[0]
         mac['THR'] = DevThr[dev_type].value
         mac['BPM2'] = bpm2
         return mac

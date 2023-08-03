@@ -10,13 +10,6 @@ class DevThr(str, Enum):
     BACT = "I0_BACT"
 
 
-class ConfFiles(str, Enum):
-    """Enum used for the Embedded Display in the Configure tab."""
-    DEF = "resources/conf_def_embed.ui"
-    BPMS = "resources/conf_bpm_embed.py"
-    ERR = "resources/conf_err_embed.ui"
-
-
 class Statuses(Enum):
     RED = (3, (255, 0, 0))          # Red:          Major Alarm
     YEL = (2, (235, 235, 0))        # Yellow:       Minor Alarm

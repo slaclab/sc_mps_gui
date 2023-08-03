@@ -1,3 +1,4 @@
+from json import dumps
 from functools import partial
 from epics import (PV, caget_many)
 from epics.dbr import DBE_VALUE
@@ -6,7 +7,9 @@ from qtpy.QtWidgets import (QWidget, QTableWidgetItem, QHBoxLayout, QVBoxLayout,
                             QMessageBox, QHeaderView, QLabel, QTableWidget)
 from pydm import Display
 from pydm.widgets import (PyDMLabel, PyDMByteIndicator)
+from models_pkg.mps_model import MPSModel
 from resources.multi_channel_widgets import (PyDMMultiLineEdit, PyDMMultiCheckbox)
+from resources.config_widgets import channel_range
 
 
 class ConfBPM(Display):
@@ -23,52 +26,158 @@ class ConfBPM(Display):
                       10: "TMIT_T4",
                       11: "TMIT_T5"}
 
-    def __init__(self, parent=None, args=[], macros=None, ui_filename=None):
-        super(ConfBPM, self).__init__(parent=parent, args=args, macros=macros,
+    def __init__(self, parent=None, macros=None, devices=[], model=MPSModel):
+        super(ConfBPM, self).__init__(parent=parent, macros=macros,
                                       ui_filename=__file__.replace(".py", ".ui"))
         self.mac = macros
+        self.devices = devices
+        self.model = model
 
-        if not self.mac.get('MULTI', False):
-            self.ui.multi_dev_tbl.hide()
-            return
-
-        self.ui.single_dev_scroll.hide()
-
-        self.devs = [self.mac[k] for k in self.mac.keys() if "DEVICE" in k]
-        self.ui.multi_dev_tbl.setColumnCount((len(self.devs)) + 1)
         self.ui.multi_dev_tbl.setEditTriggers(QTableWidget.NoEditTriggers)
-
-        for row in range(self.ui.multi_dev_tbl.rowCount()):
-            for col in range(self.ui.multi_dev_tbl.columnCount()):
-                self.populate_cell(row, col)
 
         hdr = self.ui.multi_dev_tbl.verticalHeader()
         hdr.setSectionResizeMode(QHeaderView.ResizeToContents)
         hdr = self.ui.multi_dev_tbl.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.ui.multi_dev_tbl.setHorizontalHeaderLabels(["Set Value To"] + self.devs)
 
-    def populate_cell(self, row, col):
-        """Populate the given cell. Rows 0-3 are static text, while
-        other rows are dynamic Read/Write widgets."""
-        if row < 4:
-            if col == 0:
-                item = QTableWidgetItem("-")
-            else:
-                key = self.cell_fill_dict[row] + str(col)
-                item = QTableWidgetItem(str(self.mac[key]))
-            item.setTextAlignment(Qt.AlignCenter)
-            self.ui.multi_dev_tbl.setItem(row, col, item)
+        self.set_devices(devices)
+
+    def set_devices(self, devices):
+        self.devices = devices
+        self.device_names = {d: self.model.name.getDeviceName(d) for d in self.devices}
+        if len(self.devices) <= 1:
+            self.populate_single(self.devices[0])
             return
 
-        if col == 0:
-            row_devs = [f"{d}:{self.cell_fill_dict[row]}" for d in self.devs]
-            wid = ConfWriteBPM(self.ui.multi_dev_tbl, row_devs)
-        else:
-            row_dev = f"{self.mac['DEVICE' + str(col)]}:{self.cell_fill_dict[row]}"
-            wid = ConfReadBPM(self.ui.multi_dev_tbl, row_dev)
+        self.ui.single_dev_scroll.hide()
 
-        self.ui.multi_dev_tbl.setCellWidget(row, col, wid)
+        self.ui.multi_dev_tbl.show()
+        self.ui.multi_dev_tbl.setColumnCount(len(self.devices) + 1)
+
+        self.populate_write_column()
+        for col in range(1, self.ui.multi_dev_tbl.columnCount()):
+            self.populate_column(col)
+
+        hdr_lst = ["Set Value To"] + list(self.device_names.values())
+        self.ui.multi_dev_tbl.setHorizontalHeaderLabels(hdr_lst)
+
+    def add_device(self, device):
+        self.devices.append(device)
+        self.device_names[device] = self.model.name.getDeviceName(device)
+
+        self.populate_column(len(self.devices))
+        self.populate_write_column()
+
+    def remove_device(self, device):
+        if device not in self.devices:
+            return
+
+        ind = self.devices.index(device)
+        del self.devices[ind]
+        del self.device_names[device]
+        self.ui.multi_dev_tbl.removeColumn(ind)
+
+        if len(self.devices) == 1:
+            self.populate_single(self.devices[0])
+            return
+
+        self.populate_write_column()
+
+    def populate_single(self, device):
+        self.ui.multi_dev_tbl.hide()
+        self.ui.single_dev_scroll.show()
+
+        sheet = (f'QFrame[objectName="slot_{device.card.slot_number}_frame"]'
+                 + '{background-color: rgb(0, 0, 255);}')
+        self.ui.single_dev_cntnt.setStyleSheet(sheet)
+
+        for slot_num in range(1, 8):
+            app_lbl = getattr(self.ui, f"app_{slot_num}_lbl")
+            app_lbl.setText(self.rich_text_label("Application", "Slot Empty"))
+
+            ch_lbl = getattr(self.ui, f"ch_{slot_num}_lbl")
+            ch_lbl.setText(self.rich_text_label("Channel"))
+
+        for card in device.card.crate.cards:
+            app_lbl = getattr(self.ui, f"app_{card.slot_number}_lbl")
+            app_lbl.setText(self.rich_text_label("Application", card.number))
+
+            channels = channel_range(card.analog_channels
+                                     + card.digital_channels
+                                     + card.digital_out_channels)
+            ch_lbl = getattr(self.ui, f"ch_{card.slot_number}_lbl")
+            ch_lbl.setText(self.rich_text_label("Channel", channels))
+
+        ln_text = self.rich_text_label("LN", device.card.link_node.lcls1_id)
+        self.ui.link_node_lbl.setText(ln_text)
+        self.ui.crate_loc_lbl.setText(device.card.crate.location)
+        self.ui.cpu_lbl.setText(device.card.link_node.cpu)
+
+        dev_name = self.device_names[device]
+        self.ui.xorbit_embed.macros = dumps({"P": f"{dev_name}:X",
+                                             "THR": "T0",
+                                             "NUM": 0,
+                                             "FORMAT": "DEFAULT"})
+        self.ui.yorbit_embed.macros = dumps({"P": f"{dev_name}:Y",
+                                             "THR": "T0",
+                                             "NUM": 0,
+                                             "FORMAT": "DEFAULT"})
+        for i in range(6):
+            tmit_embed = getattr(self.ui, f"tmit_thr{i}_embed")
+            tmit_embed.macros = dumps({"P": f"{dev_name}:TMIT",
+                                       "THR": f"T{i}",
+                                       "NUM": i,
+                                       "FORMAT": "DEFAULT"})
+
+    def populate_write_column(self):
+        for row in range(self.ui.multi_dev_tbl.rowCount()):
+            if row < 4:
+                item = QTableWidgetItem("-")
+                item.setTextAlignment(Qt.AlignCenter)
+                self.ui.multi_dev_tbl.setItem(row, 0, item)
+                continue
+
+            row_devs = []
+            for dev in self.devices:
+                dev_name = self.device_names[dev]
+                pv = f"{dev_name}:{self.cell_fill_dict[row]}"
+                row_devs.append(pv)
+
+            wid = ConfWriteBPM(self.ui.multi_dev_tbl, row_devs)
+            self.ui.multi_dev_tbl.setCellWidget(row, 0, wid)
+
+    def populate_column(self, col):
+        device = self.devices[col - 1]
+
+        item = QTableWidgetItem(str(device.card.link_node.lcls1_id))
+        item.setTextAlignment(Qt.AlignCenter)
+        self.ui.multi_dev_tbl.setItem(0, col, item)
+
+        item = QTableWidgetItem(device.card.crate.location)
+        item.setTextAlignment(Qt.AlignCenter)
+        self.ui.multi_dev_tbl.setItem(1, col, item)
+
+        item = QTableWidgetItem(str(device.card.number))
+        item.setTextAlignment(Qt.AlignCenter)
+        self.ui.multi_dev_tbl.setItem(2, col, item)
+
+        channels = channel_range(device.card.analog_channels
+                                 + device.card.digital_channels
+                                 + device.card.digital_out_channels)
+        item = QTableWidgetItem(channels)
+        item.setTextAlignment(Qt.AlignCenter)
+        self.ui.multi_dev_tbl.setItem(3, col, item)
+
+        for row in range(4, self.ui.multi_dev_tbl.rowCount()):
+            dev_name = self.device_names[device]
+            pv = f"{dev_name}:{self.cell_fill_dict[row]}"
+            wid = ConfReadBPM(self.ui.multi_dev_tbl, pv)
+            self.ui.multi_dev_tbl.setCellWidget(row, col, wid)
+
+    @staticmethod
+    def rich_text_label(label, content=""):
+        return ('<html><head/><body><p><span style=" font-weight:600;">'
+                + f'{label}:</span> {content}</p></body></html>')
 
 
 class ConfReadBPM(QWidget):
