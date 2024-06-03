@@ -1,6 +1,5 @@
 from qtpy.QtCore import (Qt, Slot, Signal, QModelIndex, QAbstractTableModel)
 from qtpy.QtWidgets import QStyledItemDelegate
-from sqlalchemy.orm import (sessionmaker, scoped_session)
 from pydm.widgets import PyDMRelatedDisplayButton
 from enums import Statuses
 
@@ -10,10 +9,9 @@ class AppStatusTable(QAbstractTableModel):
 
     status_signal = Signal(int, int)
 
-    def __init__(self, parent, sessionmaker: sessionmaker, apps):
+    def __init__(self, parent, apps):
         super(AppStatusTable, self).__init__(parent)
         self.apps = apps
-        self.session = scoped_session(sessionmaker)
 
         self.lnind = self.hdr_lst.index("LN")
         self.gind = self.hdr_lst.index("Group")

@@ -13,7 +13,7 @@ class AppStatusMixin:
         """Initializer for the App Status tab."""
         self.apps = self.model.config.session.query(ApplicationCard).all()
 
-        self.app_tbl_model = AppStatusTable(self, self.model.config.Session, self.apps)
+        self.app_tbl_model = AppStatusTable(self, self.apps)
         self.rd_button_delegate = RelatedDisplayDelegate(self.ui.app_status_tbl)
 
         self.app_model = MPSSortFilterModel(self)

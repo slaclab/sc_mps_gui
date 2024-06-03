@@ -6,8 +6,7 @@ from qtpy.QtWidgets import (QStyledItemDelegate, QApplication, QToolTip)
 from qtpy.QtGui import QPalette
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import (sessionmaker, scoped_session)
-from mps_database.models.condition import Condition
-from mps_database.models.fault_state import FaultState
+from mps_database.models import (Condition, FaultState)
 from enums import Statuses
 from models_pkg.mps_model import MPSModel
 
