@@ -1,3 +1,5 @@
+R4.1.12 Zach Domke      04/16/2025
+        Remove reference in CUD mode to TPG PVs that no longer exist
 R4.1.11 Zach Domke      06/03/2024
         Fault status is determined relative to MPS Speed Limit
 R4.1.10 Zach Domke      08/29/2023
