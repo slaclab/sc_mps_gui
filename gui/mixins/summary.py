@@ -1,8 +1,7 @@
 from qtpy.QtCore import (Qt, Slot, QPoint)
-from qtpy.QtWidgets import (QHeaderView, QAction, QMenu, QTableView, QGraphicsOpacityEffect)
+from qtpy.QtWidgets import (QWidget, QHeaderView, QAction, QMenu, QTableView, QGraphicsOpacityEffect)
 from models_pkg.logic_model import MPSSortFilterModel
-from epics import caget
-from epics import PV
+from ScPatternSelect import ModeTable
 
 
 class SummaryMixin:
@@ -37,9 +36,8 @@ class SummaryMixin:
             hdr.setDefaultSectionSize(200)
             hdr.resizeSection(0, 1100)
             hdr.setSectionResizeMode(1, QHeaderView.Stretch)
-            for i in range(2, 10):
-                self.ui.summ_tbl.hideColumn(i)
 
+            self.mode_table = ModeTable(system="SYS0", unit=1, ioc="sioc-sys0-ts01")
             self.TPG_mode_destination_preference = {
                 'SC10': 6,  # LASER
                 'SC11': 2,  # BSYD
@@ -51,16 +49,15 @@ class SummaryMixin:
                 'SC17': 5,  # SXR
                 'SC18': 5}  # SXR
             self.dest_permit_map = {
+                'LASER': QWidget(),  # not used
                 'SC_DIAG0': self.ui.permit_DIAG0,
                 'SC_BSYD':  self.ui.permit_BSYD,
                 'SC_HXR':   self.ui.permit_HXR,
                 'SC_SXR':   self.ui.permit_SXR,
-                'SC_LESA':  self.ui.permit_LESA}
+                'SC_DASEL':  self.ui.permit_LESA}
 
-            # need this initial call with direct caget, otherwise the initial
-            # run of the callback will not connect to the 'DSTxx_NAME' PVs
-            self.arrange_cud(value=caget('TPG:SYS0:1:MODE'))
-            self.tpg_mode = PV('TPG:SYS0:1:MODE', callback=self.arrange_cud)
+            self.mode_table.mode_pv.add_callback(self.arrange_cud)
+            self.arrange_cud(self.mode_table.mode_pv.get())
 
         # Initialize the Bypass Table and Headers
         self.byp_model = MPSSortFilterModel(self)
@@ -135,15 +132,18 @@ class SummaryMixin:
         if value not in ['SC10', 'SC11', 'SC12']:
             self.ui.summ_tbl.showColumn(3)
 
-        # shade permit boxes for unsupported destinations
-        allowed_destinations = []
-        for i in range(6):
-            dest_name = caget(f'TPG:SYS0:1:{value}:DST0{i}_NAME')
-            if dest_name != 'NULL':
-                allowed_destinations.append(dest_name)
+        # get the max frequency for each destination
+        destinations = self.mode_table.globals.DEST_NAMES
+        freq_maxes = self.mode_table.get_frequency_maxes(value)
+        dest_maxes = dict(zip(destinations, freq_maxes))
 
-        for dest_name, dest_permit_obj in self.dest_permit_map.items():
-            permit_effect = None
-            if dest_name not in allowed_destinations:
+        for dest_name, dest_max in dest_maxes.items():
+            try:
+                dest_obj = self.dest_permit_map[dest_name]
+            except KeyError:
+                self.logger.warning(f"Unknown destination name: {dest_name}")
+                continue
+
+            if dest_max == 0 and dest_name in self.dest_permit_map:
                 permit_effect = QGraphicsOpacityEffect(opacity=0.2)
-            dest_permit_obj.setGraphicsEffect(permit_effect)
+                dest_obj.setGraphicsEffect(permit_effect)
