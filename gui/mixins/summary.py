@@ -1,6 +1,7 @@
 from qtpy.QtCore import (Qt, Slot, QPoint)
 from qtpy.QtWidgets import (QWidget, QHeaderView, QAction, QMenu, QTableView, QGraphicsOpacityEffect)
 from models_pkg.logic_model import MPSSortFilterModel
+from epics import caget, PV
 from ScPatternSelect import ModeTable
 
 
@@ -56,8 +57,10 @@ class SummaryMixin:
                 'SC_SXR':   self.ui.permit_SXR,
                 'SC_DASEL':  self.ui.permit_LESA}
 
-            self.mode_table.mode_pv.add_callback(self.arrange_cud)
-            self.arrange_cud(self.mode_table.mode_pv.get())
+            # need this initial call with direct caget, otherwise the initial
+            # run of the callback will not connect to the 'DSTxx_NAME' PVs
+            self.arrange_cud(value=caget('TPG:SYS0:1:MODE'))
+            self.tpg_mode = PV('TPG:SYS0:1:MODE', callback=self.arrange_cud)
 
         # Initialize the Bypass Table and Headers
         self.byp_model = MPSSortFilterModel(self)
